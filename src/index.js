@@ -1,6 +1,8 @@
 const express = require("express");
 const axios = require("axios");
 const cheerio = require('cheerio');
+const cors = require('cors');
+
 
 const fun = require("./funciones")
 const funAv = require("./funcionesAvanzadas") 
@@ -8,6 +10,8 @@ const funAv = require("./funcionesAvanzadas")
 const FormData = require('form-data');
 
 const app = express()
+app.use(cors());
+
 
 app.set("appName","Express Course")
 app.set("port",3000)
