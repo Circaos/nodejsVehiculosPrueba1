@@ -1,7 +1,10 @@
 const express = require("express");
 const axios = require("axios");
 const cheerio = require('cheerio');
+
 const fun = require("./funciones")
+const funAv = require("./funcionesAvanzadas") 
+
 const FormData = require('form-data');
 
 const app = express()
@@ -40,82 +43,140 @@ app.get("/prueba/:codEmpresa",async (req,res)=>{
                 respuestaEnviar.push(vehiculo)
             }
 
-            // console.log(`Fila ${index + 1}:`, row);
-        
         });
-
-        // console.log(respuestaEnviar)
     
         res.json(respuestaEnviar)
         
     } catch (error) {
         console.error('Error al hacer scraping:', error);
-        res.status(500).send('Error al hacer scraping');
+        res.status(500).send('Error al hacer scraping en /prueba/:codEmpresa');
     }
 
 })
 
+app.post("/DescriPlaca/post",async (req,res,next) => {
+    try {
+        
+        let descriEmpresa =  req.body.descriEmpresa
+        let placa = req.body.placa
+    
+        if(placa && descriEmpresa){
+            
+            // console.log("antes del funAv.obtenerEmpresasXDescri")
+            let rptListaEmpres = await funAv.obtenerEmpresasXDescri(descriEmpresa)
+            // console.log(`despues obtenerEmpresasXDescri con ${rptListaEmpres}` )
+            // console.log("luego")
+
+            // console.log(`Obtenido rpt empresas ${rptListaEmpres}`)
+
+            if(rptListaEmpres.comentario == "OK"){
+
+                // console.log("si est OK 1")
+
+                let listaEmpresas = rptListaEmpres.rpt
+
+                let listaCoincidentes = []
+
+                for (const element of listaEmpresas) {
+                    
+                    // console.log("si esta dentro de Foreach")
+    
+                    let codEmpresa = element.codigo
+    
+    
+                    // console.log(" antes del nuevo obte")
+                    let vehiculoCoincide = await funAv.obtenerPlacaYcodEmpresa(placa,codEmpresa)
+                    // console.log(" despues del nuevo obte")
+    
+    
+                    if (vehiculoCoincide.comentario == "OK") {
+                        listaCoincidentes.push(vehiculoCoincide.rpt)
+    
+                        if (vehiculoCoincide.rpt.estado == "HABILITADO") {
+                            
+                            res.json({
+                                comentario:"OK",
+                                rpt: listaCoincidentes
+    
+                            })
+                            return ""
+                        }
+                    }
+                }
+
+
+                // listaEmpresas.forEach(async element => {
+
+                // });
+
+                res.json({
+                    comentario:"OK",
+                    rpt: listaCoincidentes
+                })
+
+            }else{
+                res.status(500).json({
+                    comentario:"erro al buscar Empresa",
+                    rpt : []
+                })
+            }
+
+    
+        }else{
+            // res.status(500).send('Error placa o empresa NO ingresados en /DescriPlaca/post');
+            res.status(500).json({
+                comentario:"Error placa o empresa NO ingresados en /DescriPlaca/post",
+                rpt : []
+            })
+
+            return ""
+            console.log("finish")
+
+        }
+    } catch (error) {
+        console.error('Error al hacer scraping:', error);
+        res.status(500).send('Error al hacer scraping en /DescriPlaca/post');
+    }
+})
+
+app.post("/PlacaEmpresa/post",async (req,res) => {
+    try {
+
+        let preCodigoEmpr =  req.body.empresa
+
+        let placa = req.body.placa
+        let codigoEmpr = fun.normalizacionCodEmpresa(preCodigoEmpr)
+    
+        let respuesta = await funAv.obtenerPlacaYcodEmpresa(placa,codigoEmpr)
+
+        res.send(respuesta)
+
+        
+    } catch (error) {
+        console.error('Error al hacer scraping:', error);
+        res.status(500).send('Error al hacer scraping en /PlacaEmpresa/post');
+    }
+})
+
+
 app.post("/prueba/post",async (req,res)=>{
     try {
-        const formData = new FormData();
 
         let busqueda =  req.body.busqueda
 
-        console.log(`Busqueda: ${busqueda}`)
-
-        formData.append('CG_Codigo', '');
-        formData.append('CG_Descri', "porvenir");
-        formData.append('CG_Pais', '');
-
-        const response = await axios.post('http://www.aduanet.gob.pe/servlet/CGEmpint', {
-            CG_Codigo: "",
-            CG_Descri:"porvenir",
-            CG_Pais:""
-            }, {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-        })
-
-
-        const $ = cheerio.load(response.data);
-
-        const rowsBasic = $('center > table');
-        const rows = $(rowsBasic[1]).find('tr')
-
-        let respuestaEnviar = []
-
-        rows.each((index, element) => {
-
-            if(index != 0){
-
-                const row = [];
-                let p = $(element).find('td').each((i, el) => {
-                  row.push($(el).text().trim());
-                    // console.log(` ${i} ) = ${$(el).text()}`)
-                });
+        rpt = await funAv.obtenerEmpresasXDescri(busqueda)
     
-                // console.log(row)
-    
-                if (row.length == 6) {
-                    let empresa = fun.crearEmpresa(row[0], row[1], row[2], row[3], row[4], row[5])
-                    respuestaEnviar.push(empresa)
-                }
-
-            }
-
-        
-        });
-
-      
-    
-        res.json(respuestaEnviar)
-
+        if (rpt.comentario == "OK") {
+            
+            res.json(rpt.rpt)
+        } else {
+            res.status(500).send(`${rpt.comentario}`);
+        }
 
 
     } catch (error) {
         console.error('Error al hacer scraping:', error);
-        res.status(500).send('Error al hacer scraping');
+        res.status(500).send('Error al hacer scraping en /prueba/post');
     }
 })
 

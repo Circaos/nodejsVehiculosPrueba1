@@ -1,3 +1,5 @@
+
+
 let normalizacionCodEmpresa = (codBasico) =>{
     
     let rpt;
@@ -49,6 +51,9 @@ let crearEmpresa = (codigo, descripcion,jurisdiccion,tipoDeConvenio,direccion,es
 
     return rpt
 }
+
+
+
 
 
 module.exports = { normalizacionCodEmpresa, crearPersona,crearEmpresa};
